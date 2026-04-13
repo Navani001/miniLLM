@@ -14,6 +14,9 @@ import os
 import random
 from pathlib import Path
 
+# Keep PyTorch on CPU and avoid GPU probing on hosts with stale NVIDIA drivers.
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+
 import numpy as np
 import torch
 from datasets import Dataset
@@ -71,17 +74,19 @@ def main() -> None:
     parser.add_argument("--dataset", default="json_extraction_dataset_500.json")
     parser.add_argument("--output-dir", default="outputs")
     parser.add_argument("--model-name", default="sshleifer/tiny-gpt2")
-    parser.add_argument("--max-length", type=int, default=128)
-    parser.add_argument("--batch-size", type=int, default=4)
-    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--max-length", type=int, default=64)
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--learning-rate", type=float, default=5e-4)
     parser.add_argument("--seed", type=int, default=3407)
+    parser.add_argument("--max-samples", type=int, default=200)
     args = parser.parse_args()
 
     set_seed(args.seed)
 
     dataset_path = Path(args.dataset)
     records = load_records(dataset_path)
+    records = records[: args.max_samples]
     print(records[0])
 
     print("Device: cpu")
@@ -110,6 +115,7 @@ def main() -> None:
         use_cpu=True,
         remove_unused_columns=False,
         dataloader_pin_memory=False,
+        dataloader_num_workers=0,
     )
 
     trainer = Trainer(
