@@ -12,10 +12,23 @@ import argparse
 import json
 import os
 import random
+import re
+import warnings
 from pathlib import Path
 
 # Keep PyTorch on CPU and avoid GPU probing on hosts with stale NVIDIA drivers.
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+
+warnings.filterwarnings(
+    "ignore",
+    message="CUDA initialization: The NVIDIA dri    ver on your system is too old.*",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message="Can't initialize NVML",
+    category=UserWarning,
+)
 
 import numpy as np
 import torch
@@ -44,10 +57,23 @@ def load_records(dataset_path: Path) -> list[dict]:
 
 
 def format_prompt(record: dict) -> str:
+    output_json = json.dumps(record["output"], ensure_ascii=False)
     return (
         f"### Input: {record['input']}\n"
-        f"### Output: {json.dumps(record['output'], ensure_ascii=False)}"
+        f"### Output: {output_json}<|endoftext|>"
     )
+
+
+def extract_json_object(text: str) -> str | None:
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        return None
+    candidate = match.group(0)
+    try:
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
+    return json.dumps(parsed, ensure_ascii=False, indent=2)
 
 
 def build_dataset(records: list[dict]) -> Dataset:
@@ -131,20 +157,28 @@ def main() -> None:
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
 
+    model.eval()
+
     test_prompt = (
         "### Input: <div class='product'><h2>iPad Air</h2><span class='price'>$1344</span>"
         "<span class='category'>audio</span><span class='brand'>Dell</span></div>\n### Output:"
     )
     inputs = tokenizer(test_prompt, return_tensors="pt")
-    generated = model.generate(
-        **inputs,
-        max_new_tokens=64,
-        do_sample=True,
-        top_p=0.9,
-        temperature=0.7,
-        pad_token_id=tokenizer.eos_token_id,
-    )
-    print(tokenizer.decode(generated[0], skip_special_tokens=True))
+    with torch.no_grad():
+        generated = model.generate(
+            **inputs,
+            max_new_tokens=96,
+            do_sample=False,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.eos_token_id,
+        )
+    decoded = tokenizer.decode(generated[0], skip_special_tokens=True)
+    output_only = decoded.split("### Output:", 1)[-1].strip()
+    maybe_json = extract_json_object(output_only)
+    if maybe_json is not None:
+        print(maybe_json)
+    else:
+        print(output_only)
 
 
 if __name__ == "__main__":
