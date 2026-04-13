@@ -9,17 +9,22 @@ Original file is located at
 
 import json
 
+import torch
+
 file = json.load(open("json_extraction_dataset_500.json", "r"))
 print(file[1])
 
-
 # For GPU check
-import torch
 print(f"CUDA available: {torch.cuda.is_available()}")
 print(f"GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None'}")
 
+if not torch.cuda.is_available():
+    raise SystemExit(
+        "This script requires a CUDA GPU because unsloth does not run on CPU-only systems. "
+        "Run it on a GPU instance, or use the CPU-safe training script in untitled41.py instead."
+    )
+
 from unsloth import FastLanguageModel
-import torch
 
 model_name = "unsloth/Phi-3-mini-4k-instruct-bnb-4bit"
 
@@ -125,14 +130,15 @@ print(response)
 
 model.save_pretrained_gguf("gguf_model", tokenizer, quantization_method="q4_k_m")
 
-from google.colab import files
 import os
 
 gguf_files = [f for f in os.listdir("gguf_model") if f.endswith(".gguf")]
 if gguf_files:
     gguf_file = os.path.join("gguf_model", gguf_files[0])
     print(f"Downloading: {gguf_file}")
-    files.download(gguf_file)
+    try:
+        from google.colab import files
 
-from google.colab import files
-files.download('/content/phi-3-mini-4k-instruct.Q4_K_M.gguf')
+        files.download(gguf_file)
+    except ImportError:
+        print(f"Saved locally: {gguf_file}")
