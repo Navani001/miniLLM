@@ -1,7 +1,14 @@
 torch
 numpy
-transformers
 datasets
+transformers
 tokenizers
-wandb
 tqdm
+wandb
+
+# Fine-tuning stack used by fine_tuning.py
+unsloth
+trl
+peft
+accelerate
+bitsandbytes
