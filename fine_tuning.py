@@ -12,7 +12,6 @@ import json
 file = json.load(open("json_extraction_dataset_500.json", "r"))
 print(file[1])
 
-!pip install unsloth trl peft accelerate bitsandbytes
 
 # For GPU check
 import torch
