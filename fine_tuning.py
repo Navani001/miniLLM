@@ -84,8 +84,7 @@ def main() -> None:
     records = load_records(dataset_path)
     print(records[0])
 
-    print(f"CUDA available: {torch.cuda.is_available()}")
-    print(f"Device: {'cuda' if torch.cuda.is_available() else 'cpu'}")
+    print("Device: cpu")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     if tokenizer.pad_token is None:
@@ -108,7 +107,7 @@ def main() -> None:
         save_strategy="epoch",
         save_total_limit=2,
         report_to="none",
-        no_cuda=True,
+        use_cpu=True,
         remove_unused_columns=False,
         dataloader_pin_memory=False,
     )
